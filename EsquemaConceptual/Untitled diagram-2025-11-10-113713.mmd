@@ -1,0 +1,43 @@
+flowchart TD
+    subgraph Inicializacion["Inicialización"]
+        A("MainActivity.onCreate") --> B_INIT["Crea WebView"]
+        A --> A_IM["Activa Modo Inmersivo & KeepScreenOn"]
+        A --> A_NET["Registra Network Callback (E)"]
+        A --> A_IDLE["Inicia Idle Monitor (D)"]
+        B_INIT --> C_CONFIG["WebViewFactory: Configura JS, DOM, etc."]
+        C_CONFIG --> B_WEBVIEW["WebView Configurado"]
+    end
+
+    subgraph Perdida["Pérdida de Conexión"]
+        B_WEBVIEW --> C_ERROR["Error de carga"]
+        C_ERROR --> C_DETECT["Detecta error isForMainFrame"]
+        C_DETECT --> C_TAG["Guarda URL fallida en B.tag"]
+        C_TAG --> C_ERR_UI["Carga HTML de error 'Sin Conexión'"]
+    end
+
+    subgraph Recuperacion["Recuperación de Conexión (Tu Solución)"]
+        E_NETWORK["Network Available"] --> A_RECOVER["onAvailable()"]
+        A_RECOVER --> A_SPIN["Muestra Spinner (showOverlayState=true)"]
+        A_RECOVER --> B_BLANK["B.loadData('Blank HTML')"]
+        B_BLANK --> B_SKIP["B.tag = 'SKIP_ERROR_UI'"]
+        B_SKIP --> B_LOAD["B.loadUrl(config.targetUrl)"]
+        B_LOAD --> C_IGNORE["C: IGNORA carga de HTML de error"]
+        B_LOAD --> B_FINISH["onPageFinished"]
+        B_FINISH --> B_CLEAN["B.tag = null"]
+        B_CLEAN --> A_HIDE["Oculta Spinner"]
+    end
+
+    subgraph Monitor["Monitor de Inactividad (D)"]
+        A_USER["onUserInteraction()"] --> D_RESET["Actualiza lastInteractionMillis"]
+        D_TIMER["Timer cada 30s"] --> D_CHECK["Comprueba si inactivo > 45s"]
+        D_CHECK --> D_LOAD["A.loadUrl(config.targetUrl)"]
+        D_LOAD --> A_SPIN
+        D_LOAD --> D_RESET
+        D_CHECK --> D_WAIT["Espera 30s"]
+    end
+
+    subgraph Logica["Lógica de Fallo (Bucle Evitado)"]
+        B_LOAD_FAIL["Falla la carga, tag='SKIP_ERROR_UI'"] --> C_CHECK["C detecta tag"]
+        C_CHECK --> C_IGNORE_FINAL["C ignora error"]
+        C_IGNORE_FINAL --> B_CONTINUE["Continúa flujo"]
+    end
